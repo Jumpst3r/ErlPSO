@@ -9,7 +9,7 @@
 -author("Nicolas Dutly & Mevlüt Tatli").
 %% DEV branch
 %% API
--export([init/8, init_particle/7]).
+-export([init/7, init_particle/7]).
 
 %%%
 %%% Initializes N particles and starts
@@ -24,10 +24,12 @@
 %%% @param Hi: upper search space bound
 %%% @param Epochs: Number of iterations
 %%%
-init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
+init(W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
+  % Read node ID's for TEDA deployment
+  {ok, [_|Ns]} = file:consult('enodes.conf'),
+  N = length(Ns),
   io:format("Spawning and initializing ~p particles...~n", [N]),
-
-  P_list = [spawn(?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || _ <- lists:seq(1, N)],
+  P_list = [spawn(Id, ?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || Id <- Ns],
   Candidates = wait_for_particle(N, []),
   io:format("~nInitialization done.~n"),
   Swarm_min = get_swarm_min(Candidates),
@@ -62,6 +64,7 @@ wait_for_particle(N, Candidates) ->
 cost_function(L) ->
   X = lists:nth(1, L),
   Y = lists:nth(2, L),
+  %-(Y+47)*math:sin(math:sqrt(abs((X/2)+(Y+47))))-X*math:sin(math:sqrt(abs(X-(Y+47)))).
   math:pow(math:pow(X,2)+Y-11,2)+math:pow((X+math:pow(Y,2)-7),2).
 
 %% Particle optimization procedure
