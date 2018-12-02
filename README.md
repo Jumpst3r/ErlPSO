@@ -8,11 +8,6 @@ This project aims to implement a high performance, distributed particle swarm op
 
 [Particle swarm optimization](https://en.wikipedia.org/wiki/Particle_swarm_optimization)
 
-In a nutshell: PSO is a heuristic optimization algorithm in which several particles move
-in a search space according to a few simple equations. These particles should then converge towards the functions global minimum:
-
-![PSO animation](https://en.wikipedia.org/wiki/Particle_swarm_optimization#/media/File:ParticleSwarmArrowsAnimation.gif)
-
 ## Project structure
 
 The distributed PSO implementation can be found in
