@@ -6,7 +6,7 @@ Authors: Nicolas D. Mevlüt T.
 
 This project aims to implement a high performance, distributed particle swarm optimizer. Developed during the CDC18 course. For a short description on particle swarm algorithms, I recommend you take a look at
 
-https://en.wikipedia.org/wiki/Particle_swarm_optimization
+[Particle swarm optimization](https://en.wikipedia.org/wiki/Particle_swarm_optimization)
 
 ## Project structure
 
