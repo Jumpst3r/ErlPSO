@@ -10,7 +10,10 @@
 -author("mevlut").
 
 %% API
--export([pso/7]).
+-export([start/8]).
+
+start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
+  pso(Dim, N, W_s, W_c, Phi, Hi, Epochs).
 
 pso(Dim, NbParticles, WS, WP, WG, Interval, Iterations) ->
   Time_start = os:system_time(),

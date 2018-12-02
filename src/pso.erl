@@ -10,7 +10,7 @@
 -author("Nicolas Dutly & Mevlüt Tatli").
 
 %% API
--export([init/8, init_particle/7]).
+-export([start/8, init_particle/7]).
 
 %%%
 %%% Initializes N particles and starts
@@ -25,15 +25,22 @@
 %%% @param Hi: upper search space bound
 %%% @param Epochs: Number of iterations
 %%%
+
+start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
+  TimeStart = os:system_time(),
+  init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs),
+  TimeElapsed = os:system_time() - TimeStart,
+  io:format("~n~nElapsed time: ~p", [TimeElapsed]).
+
 init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
-  io:format("Spawning and initializing ~p particles...~n", [N]),
+  TimeStart = os:system_time(),
+  %io:format("Spawning and initializing ~p particles...~n", [N]),
 
   P_list = [spawn(?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || _ <- lists:seq(1, N)],
-  Candidates = wait_for_particle(N, []),
-  io:format("~nInitialization done.~n"),
-  Swarm_min = get_swarm_min(Candidates),
-  io:format("Initial swarm min: ~p~n", [cost_function(Swarm_min)]),
-  master_optimize(Epochs, Swarm_min, N, P_list).
+  GMin = wait_for_particle(N, []),
+  %io:format("~nInitialization done.~n"),
+  %io:format("Initial swarm min: ~p~n", [cost_function(GMin)]),
+  master_optimize(Epochs, GMin, N, P_list).
 
 
 %% Particle initialization
@@ -47,14 +54,24 @@ init_particle(Dim, Lo, Hi, W_s, W_c, Phi, MPid) ->
   end.
 
 %% Wait for particles to finish calculations and collect results.
-%% TODO: single positions
-wait_for_particle(0, Candidates) ->
-  io:format("Done waiting for particles~n"),
-  Candidates;
-wait_for_particle(N, Candidates) ->
+wait_for_particle(0, GMin) ->
+  %io:format("Done waiting for particles~n"),
+  GMin;
+wait_for_particle(N, []) ->
   receive
     {done, Val} ->
-      wait_for_particle(N - 1, Candidates ++ [Val])
+      wait_for_particle(N - 1, Val)
+
+  end;
+wait_for_particle(N, GMin) ->
+  receive
+    {done, Val} ->
+      New = cost_function(Val),
+      Old = cost_function(GMin),
+      if
+        New < Old -> wait_for_particle(N - 1, Val);
+        true -> wait_for_particle(N - 1, GMin)
+      end
   end.
 
 
@@ -68,7 +85,7 @@ cost_function(L) ->
 %% Particle optimization procedure
 optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid) ->
   % recursive dimensions
-  io:format("| [~p]  Updating particle position...~n", [self()]),
+  %io:format("| [~p]  Updating particle position...~n", [self()]),
   R_p = rand:uniform(),
   R_g = rand:uniform(),
   T1 = [Phi * X || X <- InitVel],
@@ -92,23 +109,18 @@ master_optimize(0, SwarmMin, _, _) ->
 
   SwarmMin;
 master_optimize(N, SwamMin, NbOfParticles, PList) ->
-  io:format("~n---------------EPOCH[~p]----------------------~n", [N]),
+  %io:format("~n---------------EPOCH[~p]----------------------~n", [N]),
   [Pid ! {start, SwamMin} || Pid <- PList],
-  io:format("start signal sent to particles~n"),
-  io:format("waiting for particles...~n"),
-  Candidates = wait_for_particle(NbOfParticles, []),
-  NewMinVal = cost_function(get_swarm_min(Candidates)),
+  %%io:format("start signal sent to particles~n"),
+  %io:format("waiting for particles...~n"),
+  GMin = wait_for_particle(NbOfParticles, []),
+  NewMinVal = cost_function(GMin),
   OldMinVal = cost_function(SwamMin),
   if
     NewMinVal < OldMinVal ->
-      io:format("Found new swarm min: ~p~n", [cost_function(get_swarm_min(Candidates))]),
-      master_optimize(N - 1, get_swarm_min(Candidates), NbOfParticles, PList);
+      %io:format("Found new swarm min: ~p~n", [cost_function(GMin)]),
+      master_optimize(N - 1, GMin, NbOfParticles, PList);
     NewMinVal >= OldMinVal ->
       master_optimize(N - 1, SwamMin, NbOfParticles, PList);
     true -> ok
   end.
-
-get_swarm_min(Candidates) ->
-  Vals = lists:map(fun(X) -> {X, cost_function(X)} end, Candidates),
-  Sorted = lists:keysort(2, Vals),
-  element(1, hd(Sorted)).
