@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Nicolas Dutly & Mevlüt Tatli
-%%% @doc
+%%% @doc A distributed PSO implementation
 %%%
 %%% @end
 %%% Created : 13. nov. 2018 15:52
