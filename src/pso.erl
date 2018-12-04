@@ -33,7 +33,6 @@ start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
   io:format("~n~nElapsed time: ~p", [TimeElapsed]).
 
 init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
-  TimeStart = os:system_time(),
   %io:format("Spawning and initializing ~p particles...~n", [N]),
 
   P_list = [spawn(?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || _ <- lists:seq(1, N)],
@@ -75,12 +74,15 @@ wait_for_particle(N, GMin) ->
   end.
 
 
-%% The function we want to minimize (Himmelblau's function)
-%% The minimas are: (3,2), (3.584,-1.848), (-2.805,3.1313), (-3.779, -3.38)
+
 cost_function(L) ->
   X = lists:nth(1, L),
   Y = lists:nth(2, L),
-  math:pow(math:pow(X,2)+Y-11,2)+math:pow((X+math:pow(Y,2)-7),2).
+  % ackley's function (minima: (0,0))
+  -20 * math:exp(-0.2 * math:sqrt(0.5 * (math:pow(X, 2) + math:pow(Y, 2)))) - math:exp(0.5 * (math:cos(2 * math:pi() * X) + math:cos(2 * math:pi() * Y))) + 0.5772156649 + 20.
+%% The function we want to minimize (Himmelblau's function)
+%% The minimas are: (3,2), (3.584,-1.848), (-2.805,3.1313), (-3.779, -3.38)
+%% math:pow(math:pow(X,2)+Y-11,2)+math:pow((X+math:pow(Y,2)-7),2).
 
 %% Particle optimization procedure
 optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid) ->
