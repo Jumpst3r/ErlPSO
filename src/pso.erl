@@ -1,15 +1,16 @@
 %%%-------------------------------------------------------------------
 %%% @author Nicolas Dutly & Mevlüt Tatli
-%%% @doc
+%%% @doc A distributed PSO implementation
+%%% TODO add doc
 %%%
 %%% @end
 %%% Created : 13. nov. 2018 15:52
 %%%-------------------------------------------------------------------
 -module(pso).
 -author("Nicolas Dutly & Mevlüt Tatli").
-%% DEV branch
+
 %% API
--export([init/7, init_particle/7]).
+-export([start/8, init_particle/7, init/9]).
 
 %%%
 %%% Initializes N particles and starts
@@ -24,17 +25,31 @@
 %%% @param Hi: upper search space bound
 %%% @param Epochs: Number of iterations
 %%%
-init(W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
-  % Read node ID's for TEDA deployment
-  {ok, [_|Ns]} = file:consult('enodes.conf'),
-  N = length(Ns),
-  io:format("Spawning and initializing ~p particles...~n", [N]),
-  P_list = [spawn(Id, ?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || Id <- Ns],
-  Candidates = wait_for_particle(N, []),
-  io:format("~nInitialization done.~n"),
-  Swarm_min = get_swarm_min(Candidates),
-  io:format("Initial swarm min: ~p~n", [cost_function(Swarm_min)]),
-  master_optimize(Epochs, Swarm_min, N, P_list).
+
+start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
+  io:format("[INFO] PSO optimization started with 5x~p particles. Params: ~n
+  W_s -> ~p
+  W_c -> ~p
+  Phi -> ~p
+  Dim -> ~p
+  Lo -> ~p
+  Hi -> ~p
+  Epochs -> ~p~n", [N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs]),
+  TimeStart = os:system_time(),
+  Min = init_groups(5, N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs),
+  TimeElapsed = os:system_time() - TimeStart,
+
+  {H, M, S} = time(),
+  io:format("~n==============================================================================~n"),
+  io:format("[~2..0b:~2..0b:~2..0b] Optimization completed. ~nSwarm optimum location: ~p~nSwarm optimum value: ~p~n", [H, M, S, Min, cost_function(Min)]),
+  io:format("================================================================================"),
+  io:format("~n~nElapsed time: ~p", [TimeElapsed]).
+
+init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs, MasterPID) ->
+  P_list = [spawn(?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || _ <- lists:seq(1, N)],
+  GMin = wait_for_particle(N, []),
+  Sol = master_optimize(Epochs, GMin, N, P_list),
+  MasterPID ! {group_done, Sol}.
 
 
 %% Particle initialization
@@ -48,29 +63,38 @@ init_particle(Dim, Lo, Hi, W_s, W_c, Phi, MPid) ->
   end.
 
 %% Wait for particles to finish calculations and collect results.
-%% TODO: single positions
-wait_for_particle(0, Candidates) ->
-  io:format("Done waiting for particles~n"),
-  Candidates;
-wait_for_particle(N, Candidates) ->
+wait_for_particle(0, GMin) ->
+  GMin;
+wait_for_particle(N, []) ->
   receive
     {done, Val} ->
-      wait_for_particle(N - 1, Candidates ++ [Val])
+      wait_for_particle(N - 1, Val)
+
+  end;
+wait_for_particle(N, GMin) ->
+  receive
+    {done, Val} ->
+      New = cost_function(Val),
+      Old = cost_function(GMin),
+      if
+        New < Old -> wait_for_particle(N - 1, Val);
+        true -> wait_for_particle(N - 1, GMin)
+      end
   end.
 
 
-%% The function we want to minimize (Himmelblau's function)
-%% The minimas are: (3,2), (3.584,-1.848), (-2.805,3.1313), (-3.779, -3.38)
 cost_function(L) ->
   X = lists:nth(1, L),
   Y = lists:nth(2, L),
-  %-(Y+47)*math:sin(math:sqrt(abs((X/2)+(Y+47))))-X*math:sin(math:sqrt(abs(X-(Y+47)))).
-  math:pow(math:pow(X,2)+Y-11,2)+math:pow((X+math:pow(Y,2)-7),2).
-
+  %%(Himmelblau's function)
+  %% The minimas are: (3,2), (3.584,-1.848), (-2.805,3.1313), (-3.779, -3.38)
+  %math:pow(math:pow(X, 2) + Y - 11, 2) + math:pow((X + math:pow(Y, 2) - 7), 2),
+  %% Ackley's function
+  %% The minimas are (0,0)
+  -20 * math:exp(-0.2 * math:sqrt(0.5 * (math:pow(X, 2) + math:pow(Y, 2)))) - math:exp(0.5 * (math:cos(2 * math:pi() * X) + math:cos(2 * math:pi() * Y))) + 0.5772156649 + 20.
 %% Particle optimization procedure
 optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid) ->
   % recursive dimensions
-  io:format("| [~p]  Updating particle position...~n", [self()]),
   R_p = rand:uniform(),
   R_g = rand:uniform(),
   T1 = [Phi * X || X <- InitVel],
@@ -86,31 +110,38 @@ optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid) ->
 
 %% The master loop optimization
 master_optimize(0, SwarmMin, _, _) ->
-  {H, M, S} = time(),
-
-  io:format("~n==============================================================================~n"),
-  io:format("[~2..0b:~2..0b:~2..0b] Optimization completed. ~nSwarm optimum location: ~p~nSwarm optimum value: ~p~n", [H, M, S, SwarmMin, cost_function(SwarmMin)]),
-  io:format("================================================================================"),
-
   SwarmMin;
 master_optimize(N, SwamMin, NbOfParticles, PList) ->
-  io:format("~n---------------EPOCH[~p]----------------------~n", [N]),
   [Pid ! {start, SwamMin} || Pid <- PList],
-  io:format("start signal sent to particles~n"),
-  io:format("waiting for particles...~n"),
-  Candidates = wait_for_particle(NbOfParticles, []),
-  NewMinVal = cost_function(get_swarm_min(Candidates)),
+  GMin = wait_for_particle(NbOfParticles, []),
+  NewMinVal = cost_function(GMin),
   OldMinVal = cost_function(SwamMin),
   if
     NewMinVal < OldMinVal ->
-      io:format("Found new swarm min: ~p~n", [cost_function(get_swarm_min(Candidates))]),
-      master_optimize(N - 1, get_swarm_min(Candidates), NbOfParticles, PList);
+      master_optimize(N - 1, GMin, NbOfParticles, PList);
     NewMinVal >= OldMinVal ->
       master_optimize(N - 1, SwamMin, NbOfParticles, PList);
     true -> ok
   end.
 
-get_swarm_min(Candidates) ->
-  Vals = lists:map(fun(X) -> {X, cost_function(X)} end, Candidates),
-  Sorted = lists:keysort(2, Vals),
-  element(1, hd(Sorted)).
+init_groups(GroupNb, N, WS, WC, Phi, Dim, Lo, Hi, Epochs) ->
+  [spawn(?MODULE, init, [N, WS, WC, Phi, Dim, Lo, Hi, Epochs, self()]) || _ <- lists:seq(1, GroupNb)],
+  waitForGroups(GroupNb, []).
+
+waitForGroups(0, Val) ->
+  Val;
+waitForGroups(GroupNb, []) ->
+  receive
+    {group_done, Min} ->
+      waitForGroups(GroupNb - 1, Min)
+  end;
+waitForGroups(GroupNb, OldMin) ->
+  receive
+    {group_done, Min} ->
+      New = cost_function(Min),
+      Old = cost_function(OldMin),
+      if
+        New < Old -> waitForGroups(GroupNb - 1, Min);
+        true -> waitForGroups(GroupNb - 1, OldMin)
+      end
+  end.
