@@ -1,5 +1,5 @@
 %%%-------------------------------------------------------------------
-%%% @author mevlut
+%%% @author Nicolas Dutly & Mevlüt Tatli
 %%% @copyright (C) 2018, <COMPANY>
 %%% @doc A sequential PSO implementation
 %%%
@@ -13,13 +13,13 @@
 -export([start/8]).
 
 start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
-  pso(Dim, N, W_s, W_c, Phi, Hi, Epochs).
+  pso(Dim, N, W_s, W_c, Phi, Lo,Hi, Epochs).
 
-pso(Dim, NbParticles, WS, WP, WG, Interval, Iterations) ->
+pso(Dim, NbParticles, WS, WP, WG, Lo, Hi, Iterations) ->
   Time_start = os:system_time(),
 
 
-  [ParticlesPos, ParticlesSpeed, ParticlesPBest] = initiateParticles(0, NbParticles, Dim, Interval, [], [], []),
+  [ParticlesPos, ParticlesSpeed, ParticlesPBest] = initiateParticles(0, NbParticles, Dim, Lo, Hi, [], [], []),
 
   %io:format("Particles pos: ~p, speed: ~p, local min: ~p~n",[ParticlesPos, ParticlesSpeed,ParticlesPBest]),
 
@@ -41,21 +41,21 @@ pso(Dim, NbParticles, WS, WP, WG, Interval, Iterations) ->
 initiateParticles(NbParticles, NbParticles, _, _, Position, Speed, PBest) ->
   [Position, Speed, PBest];
 
-initiateParticles(N, NbParticles, Dim, Interval, Position, Speed, PBest) ->
-  NewPos = initiatePos(Dim, [], Interval),
-  NewSpeed = initiatePos(Dim, [], Interval),
+initiateParticles(N, NbParticles, Dim, Lo,Hi, Position, Speed, PBest) ->
+  NewPos = initiatePos(Dim, [], Lo,Hi),
+  NewSpeed = initiatePos(Dim, [], Lo,Hi),
   NewPositions = lists:append(Position, [NewPos]),
   NewSpeeds = lists:append(Speed, [NewSpeed]),
   NewPBest = lists:append(PBest, [NewPos]),
-  initiateParticles(N + 1, NbParticles, Dim, Interval, NewPositions, NewSpeeds, NewPBest).
+  initiateParticles(N + 1, NbParticles, Dim, Lo,Hi, NewPositions, NewSpeeds, NewPBest).
 
 
 initiatePos(0, Pos, _) ->
   Pos;
-initiatePos(N, Pos, Interval) when N > 0 ->
-  NewCoord = [myUniform(Interval)],
+initiatePos(N, Pos, Lo,Hi) when N > 0 ->
+  NewCoord = [myUniform(Lo,Hi)],
   NewPos = lists:append(NewCoord, Pos),
-  initiatePos(N - 1, NewPos, Interval).
+  initiatePos(N - 1, NewPos, Lo,Hi).
 
 get_swarm_min(0, NbParticles, Positions, Dim, undef, undef) ->
   NewGBest = lists:nth(1, Positions),
@@ -128,10 +128,10 @@ evaluate(2, Coordinates) ->
 
 
 
-myUniform(N) ->
+myUniform(Lo,Hi) ->
   case rand:uniform(2) of
-    1 -> -(rand:uniform(N));
-    2 -> rand:uniform(N)
+    1 -> -(rand:uniform(Lo));
+    2 -> rand:uniform(Hi)
   end.
 
 setnth(N, List, Value) when N =:= 1 ->
