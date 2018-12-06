@@ -78,13 +78,22 @@ wait_for_particle(N, GMin) ->
 cost_function(L) ->
   X = lists:nth(1, L),
   Y = lists:nth(2, L),
+  %%(Schaffer N.2)[(0,0)]=0
+  0.5 + (math:pow(math:sin(math:pow(X, 2) - math:pow(Y, 2)), 2) - 0.5) / math:pow(1 + 0.001 * (math:pow(X, 2) + math:pow(Y, 2)), 2).
+
+%%(Levi N.13)[(1,1)]=0
+%math:pow(math:sin(3*math:pi()*X),2)+math:pow(X-1,2)*(1+math:pow(math:sin(3*math:pi()*Y),2))+math:pow(Y-1,2)*(1+math:pow(math:sin(2*math:pi()*Y),2)).
+
+%%(Goldstein-Price function)[(0,-1)]=3
+%(1+math:pow(X+Y+1,2)*(19-14*X+3*math:pow(X,2)-14*Y+6*X*Y+3*math:pow(Y,2)))*(30+math:pow(2*X-3*Y,2)*(18-32*X+12*math:pow(X,2)+48*Y-36*X*Y+27*math:pow(Y,2))).
+
+
   % ackley's function (minima: (0,0))
-  -20 * math:exp(-0.2 * math:sqrt(0.5 * (math:pow(X, 2) + math:pow(Y, 2)))) - math:exp(0.5 * (math:cos(2 * math:pi() * X) + math:cos(2 * math:pi() * Y))) + 0.5772156649 + 20.
+%-20 * math:exp(-0.2 * math:sqrt(0.5 * (math:pow(X, 2) + math:pow(Y, 2)))) - math:exp(0.5 * (math:cos(2 * math:pi() * X) + math:cos(2 * math:pi() * Y))) + 0.5772156649 + 20.
 %% The function we want to minimize (Himmelblau's function)
 %% The minimas are: (3,2), (3.584,-1.848), (-2.805,3.1313), (-3.779, -3.38)
 %% math:pow(math:pow(X,2)+Y-11,2)+math:pow((X+math:pow(Y,2)-7),2).
 
-%% Particle optimization procedure
 optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid) ->
   % recursive dimensions
   %io:format("| [~p]  Updating particle position...~n", [self()]),

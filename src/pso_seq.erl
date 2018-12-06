@@ -10,10 +10,8 @@
 -author("mevlut").
 
 %% API
--export([start/8]).
+-export([pso/8]).
 
-start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
-  pso(Dim, N, W_s, W_c, Phi, Lo,Hi, Epochs).
 
 pso(Dim, NbParticles, WS, WP, WG, Lo, Hi, Iterations) ->
   Time_start = os:system_time(),
@@ -38,7 +36,7 @@ pso(Dim, NbParticles, WS, WP, WG, Lo, Hi, Iterations) ->
   terminate.
 
 
-initiateParticles(NbParticles, NbParticles, _, _, Position, Speed, PBest) ->
+initiateParticles(NbParticles, NbParticles, _, _, _, Position, Speed, PBest) ->
   [Position, Speed, PBest];
 
 initiateParticles(N, NbParticles, Dim, Lo,Hi, Position, Speed, PBest) ->
@@ -50,7 +48,7 @@ initiateParticles(N, NbParticles, Dim, Lo,Hi, Position, Speed, PBest) ->
   initiateParticles(N + 1, NbParticles, Dim, Lo,Hi, NewPositions, NewSpeeds, NewPBest).
 
 
-initiatePos(0, Pos, _) ->
+initiatePos(0, Pos, _, _) ->
   Pos;
 initiatePos(N, Pos, Lo,Hi) when N > 0 ->
   NewCoord = [myUniform(Lo,Hi)],
@@ -130,7 +128,7 @@ evaluate(2, Coordinates) ->
 
 myUniform(Lo,Hi) ->
   case rand:uniform(2) of
-    1 -> -(rand:uniform(Lo));
+    1 -> -(rand:uniform(abs(Lo)));
     2 -> rand:uniform(Hi)
   end.
 
