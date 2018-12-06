@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 13. nov. 2018 15:52
 %%%-------------------------------------------------------------------
--module(pso).
+-module(pso_global_topo).
 -author("Nicolas Dutly & Mevlüt Tatli").
 
 %% API
