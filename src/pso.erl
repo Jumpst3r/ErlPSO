@@ -59,7 +59,7 @@ init_particle(Dim, Lo, Hi, W_s, W_c, Phi, MPid) ->
   MPid ! {done, Init_pos},
   LocalMin = Init_pos,
   receive
-    {start, GlobalMin} -> optimize(Init_pos, Init_vel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid)
+    {start, GlobalMin} -> optimize(Init_pos, Init_vel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid, Lo, Hi)
   end.
 
 %% Wait for particles to finish calculations and collect results.
@@ -86,14 +86,23 @@ wait_for_particle(N, GMin) ->
 cost_function(L) ->
   X = lists:nth(1, L),
   Y = lists:nth(2, L),
-  %%(Himmelblau's function)
-  %% The minimas are: (3,2), (3.584,-1.848), (-2.805,3.1313), (-3.779, -3.38)
+
+  %%(Schaffer N.2)[(0,0)]=0
+  0.5 + (math:pow(math:sin(math:pow(X, 2) - math:pow(Y, 2)), 2) - 0.5) / math:pow(1 + 0.001 * (math:pow(X, 2) + math:pow(Y, 2)), 2).
+
+%%(Levi N.13)[(1,1)]=0
+%math:pow(math:sin(3*math:pi()*X),2)+math:pow(X-1,2)*(1+math:pow(math:sin(3*math:pi()*Y),2))+math:pow(Y-1,2)*(1+math:pow(math:sin(2*math:pi()*Y),2)).
+
+%%(Goldstein-Price function)[(0,-1)]=3
+%(1+math:pow(X+Y+1,2)*(19-14*X+3*math:pow(X,2)-14*Y+6*X*Y+3*math:pow(Y,2)))*(30+math:pow(2*X-3*Y,2)*(18-32*X+12*math:pow(X,2)+48*Y-36*X*Y+27*math:pow(Y,2))).
+
+%%(Himmelblau's function)[(3,2),(3.584,-1.848),(-2.805,3.1313),(-3.779, -3.38)]=0
   %math:pow(math:pow(X, 2) + Y - 11, 2) + math:pow((X + math:pow(Y, 2) - 7), 2),
-  %% Ackley's function
-  %% The minimas are (0,0)
-  -20 * math:exp(-0.2 * math:sqrt(0.5 * (math:pow(X, 2) + math:pow(Y, 2)))) - math:exp(0.5 * (math:cos(2 * math:pi() * X) + math:cos(2 * math:pi() * Y))) + 0.5772156649 + 20.
-%% Particle optimization procedure
-optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid) ->
+
+%% Ackley's function (0,0)
+%-20 * math:exp(-0.2 * math:sqrt(0.5 * (math:pow(X, 2) + math:pow(Y, 2)))) - math:exp(0.5 * (math:cos(2 * math:pi() * X) + math:cos(2 * math:pi() * Y))) + 0.5772156649 + 20.
+
+optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid, Lo, Hi) ->
   % recursive dimensions
   R_p = rand:uniform(),
   R_g = rand:uniform(),
@@ -102,10 +111,16 @@ optimize(InitPos, InitVel, LocalMin, GlobalMin, W_s, W_c, Phi, MPid) ->
   T3 = lists:zipwith(fun(X, Y) -> W_s * R_g * (X - Y) end, GlobalMin, InitPos),
   NewVel = lists:zipwith3(fun(X, Y, Z) -> X + Y + Z end, T1, T2, T3),
   NewPos = lists:zipwith(fun(X, Y) -> X + Y end, NewVel, InitPos),
+  L = [X || X <- NewPos, (X < Lo) or (X > Hi)],
+  Len = length(L),
+  if
+    Len =/= 0 -> init_particle(length(InitPos), Lo, Hi, W_s, W_c, Phi, MPid);
+    true -> ok
+  end,
   MPid ! {done, NewPos},
   receive
     {start, NewGlobalMin} ->
-      optimize(NewPos, NewVel, LocalMin, NewGlobalMin, W_s, W_c, Phi, MPid)
+      optimize(NewPos, NewVel, LocalMin, NewGlobalMin, W_s, W_c, Phi, MPid, Lo, Hi)
   end.
 
 %% The master loop optimization
@@ -141,7 +156,9 @@ waitForGroups(GroupNb, OldMin) ->
       New = cost_function(Min),
       Old = cost_function(OldMin),
       if
-        New < Old -> waitForGroups(GroupNb - 1, Min);
+        New < Old ->
+          io:format("Found new swarm optimum: ~p~n", [New]),
+          waitForGroups(GroupNb - 1, Min);
         true -> waitForGroups(GroupNb - 1, OldMin)
       end
   end.
