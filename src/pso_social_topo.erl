@@ -1,9 +1,16 @@
 %%%-------------------------------------------------------------------
 %%% @author Nicolas Dutly & Mevlüt Tatli
-%%% @doc A distributed PSO implementation
-%%% Using a social topology
-%%% TODO add doc
+%%% @doc A distributed PSO implementation, implementing a social topology.
 %%%
+%%% Usage: call pso_social_topo:start/8 with the parameters described in
+%%% the function header.
+%%%
+%%%
+%%% Usage example: pso_global_topo:start(100,2,2,0.75,2,-5,5,500)
+%%% starts the PSO algorithm with 100 particles, social and cognitive weight
+%%% factors of 2, particle inertia of 0.75, optimizing a two dimensional problem
+%%% described in the function 'cost_function/1'. The search space is [-5,5] and the
+%%% number of iterations 500.
 %%% @end
 %%% Created : 13. nov. 2018 15:52
 %%%-------------------------------------------------------------------
@@ -70,7 +77,6 @@ wait_for_particle(N, []) ->
   receive
     {done, Val} ->
       wait_for_particle(N - 1, Val)
-
   end;
 wait_for_particle(N, GMin) ->
   receive

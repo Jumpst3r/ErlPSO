@@ -12,10 +12,8 @@
 %% API
 -export([pso/8]).
 
-
-pso(Dim, NbParticles, WS, WP, WG, Lo, Hi, Iterations) ->
+pso(NbParticles, WS, WP, WG, Dim, Lo, Hi, Iterations) ->
   Time_start = os:system_time(),
-
 
   [ParticlesPos, ParticlesSpeed, ParticlesPBest] = initiateParticles(0, NbParticles, Dim, Lo, Hi, [], [], []),
 
