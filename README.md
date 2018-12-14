@@ -3,7 +3,7 @@ A Distributed particle swarm optimization (PSO) implementation in erlang.
 Authors: Nicolas D. Mevlüt T.
 
 ---
-~Implemented for the project of the IN.5022 Concurrent and Distributed Computing [HS 18] course.~
+*Implemented for the project of the IN.5022 Concurrent and Distributed Computing [HS 18] course.*
 
 This project aims to implement a high performance, distributed particle swarm optimizer. For a short description on particle swarm algorithms, I recommend you take a look at
 
