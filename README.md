@@ -11,6 +11,8 @@ This project aims to implement a high performance, distributed particle swarm op
 
 ## Project structure
 
+The latest version of the project can be downloaded by cloning the repository or directly downloading the [latest release](https://github.com/Jumpst3r/ErlPSO/releases/latest)
+
 The distributed PSO implementations can be found in
 
 
