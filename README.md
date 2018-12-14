@@ -1,6 +1,6 @@
 # ErlPSO
 A Distributed particle swarm optimization (PSO) implementation in erlang.
-Authors: Nicolas D. Mevlüt T.
+Nicolas D. Mevlüt T.
 
 ---
 *Implemented for the project of the IN.5022 Concurrent and Distributed Computing [HS 18] course.*
@@ -13,10 +13,13 @@ This project aims to implement a high performance, distributed particle swarm op
 
 The distributed PSO implementations can be found in
 
+
 `src/pso_global_topo.erl` (global swarm topology)
+
 `src/pso_social_topo.erl` (social swarm topology)
 
 The sequential PSO implementation can be found in
+
 
 `src/pso_seq.erl`
 
