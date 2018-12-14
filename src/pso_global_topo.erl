@@ -37,19 +37,26 @@
 %%%
 
 start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
+  io:format("[INFO] PSO optimization started with ~p particles. Params: ~n
+  W_s -> ~p
+  W_c -> ~p
+  Phi -> ~p
+  Dim -> ~p
+  Lo -> ~p
+  Hi -> ~p
+  Epochs -> ~p~n", [N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs]),
   TimeStart = os:system_time(),
   init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs),
   TimeElapsed = os:system_time() - TimeStart,
   io:format("~n~nElapsed time: ~p", [TimeElapsed]).
 
-%% Initializes the PSO algorithm, spawning N nodes.
+%% Initializes the PSO algorithm, spawning N particles distributed on the available TEDA nodes.
 init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
   {ok, [_ | Ns]} = file:consult('enodes.conf'),
   NbOfTedaNodes = length(Ns),
   NbOfParticlesPerNode = round(math:ceil(N / NbOfTedaNodes)),
   %Spawn a fraction of the total amount of particles on each erlang node available in the TEDA environment
   P_listTMP = [spawn(Id, ?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || _ <- lists:seq(1, NbOfParticlesPerNode), Id <- Ns],
-  io:format("~p", [P_listTMP]),
   P_list = lists:flatten(P_listTMP),
   GMin = wait_for_particle(N, []),
   master_optimize(Epochs, GMin, N, P_list).
@@ -86,6 +93,9 @@ wait_for_particle(N, GMin) ->
         New < Old -> wait_for_particle(N - 1, Val);
         true -> wait_for_particle(N - 1, GMin)
       end
+  % If particle died, continue (single particles dying have little impact on overall performance)
+  after 10 ->
+    wait_for_particle(N - 1, GMin)
   end.
 
 
@@ -142,17 +152,13 @@ master_optimize(0, SwarmMin, _, _) ->
 
   SwarmMin;
 master_optimize(N, SwamMin, NbOfParticles, PList) ->
-  %io:format("~n---------------EPOCH[~p]----------------------~n", [N]),
   [Pid ! {start, SwamMin} || Pid <- PList],
-  %%io:format("start signal sent to particles~n"),
-  %io:format("waiting for particles...~n"),
   GMin = wait_for_particle(NbOfParticles, []),
   NewMinVal = cost_function(GMin),
   OldMinVal = cost_function(SwamMin),
   if
     NewMinVal < OldMinVal ->
-      %io:format("Found new swarm min: ~p~n", [cost_function(GMin)]),
-      file:write_file("schaffer.csv", io_lib:fwrite("~p,~p~n", [500 - N, NewMinVal]), [append]),
+      io:format("[INFO] Found new swarm min: ~p~n", [cost_function(GMin)]),
       master_optimize(N - 1, GMin, NbOfParticles, PList);
     NewMinVal >= OldMinVal ->
       master_optimize(N - 1, SwamMin, NbOfParticles, PList);

@@ -2,15 +2,18 @@
 %%% @author Nicolas Dutly & Mevlüt Tatli
 %%% @doc A distributed PSO implementation, implementing a social topology.
 %%%
+%%% The social topology is implemented by assigning the particles to one
+%%% of five independent groups.
+%%%
 %%% Usage: call pso_social_topo:start/8 with the parameters described in
 %%% the function header.
 %%%
 %%%
 %%% Usage example: pso_global_topo:start(100,2,2,0.75,2,-5,5,500)
-%%% starts the PSO algorithm with 100 particles, social and cognitive weight
-%%% factors of 2, particle inertia of 0.75, optimizing a two dimensional problem
-%%% described in the function 'cost_function/1'. The search space is [-5,5] and the
-%%% number of iterations 500.
+%%% starts the PSO algorithm with 100 particles devided into 5 groups,
+%%% social and cognitive weight factors of 2, particle inertia of 0.75,
+%%% optimizing a two dimensional problem described in the function 'cost_function/1'.
+%%% The search space is [-5,5] and the number of iterations 500.
 %%% @end
 %%% Created : 13. nov. 2018 15:52
 %%%-------------------------------------------------------------------
@@ -18,11 +21,11 @@
 -author("Nicolas Dutly & Mevlüt Tatli").
 
 %% API
--export([start/8, init_particle/7, init/9]).
+-export([start/8, init_particle/7, init/10]).
 
 %%%
-%%% Initializes N particles and starts
-%%% the optimization process.
+%%% Initializes N particles split into 5 independent particle groups
+%%% and start optimization
 %%%
 %%% @param N: Number of particles
 %%% @param W_s: Social weight factor
@@ -35,7 +38,7 @@
 %%%
 
 start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
-  io:format("[INFO] PSO optimization started with 5x~p particles. Params: ~n
+  io:format("[INFO] PSO optimization started with ~p particles. Params: ~n
   W_s -> ~p
   W_c -> ~p
   Phi -> ~p
@@ -43,18 +46,19 @@ start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
   Lo -> ~p
   Hi -> ~p
   Epochs -> ~p~n", [N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs]),
-  TimeStart = os:system_time(),
-  Min = init_groups(5, N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs),
-  TimeElapsed = os:system_time() - TimeStart,
+  Min = init_groups(5, round(N / 5), W_s, W_c, Phi, Dim, Lo, Hi, Epochs),
 
   {H, M, S} = time(),
   io:format("~n==============================================================================~n"),
   io:format("[~2..0b:~2..0b:~2..0b] Optimization completed. ~nSwarm optimum location: ~p~nSwarm optimum value: ~p~n", [H, M, S, Min, cost_function(Min)]),
   io:format("================================================================================"),
-  io:format("~n~nElapsed time: ~p", [TimeElapsed]).
 
-init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs, MasterPID) ->
-  P_list = [spawn(?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || _ <- lists:seq(1, N)],
+init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs, MasterPID, TEDAList) ->
+  NbOfTedaNodes = length(TEDAList),
+  NbOfParticlesPerNode = round(math:ceil(N / NbOfTedaNodes)),
+  %Spawn a fraction of the total amount of particles on each erlang node available in the TEDA environment
+  P_listTMP = [spawn(Id, ?MODULE, init_particle, [Dim, Lo, Hi, W_s, W_c, Phi, self()]) || _ <- lists:seq(1, NbOfParticlesPerNode), Id <- TEDAList],
+  P_list = lists:flatten(P_listTMP),
   GMin = wait_for_particle(N, []),
   Sol = master_optimize(Epochs, GMin, N, P_list),
   MasterPID ! {group_done, Sol}.
@@ -146,8 +150,11 @@ master_optimize(N, SwamMin, NbOfParticles, PList) ->
     true -> ok
   end.
 
-init_groups(GroupNb, N, WS, WC, Phi, Dim, Lo, Hi, Epochs) ->
-  [spawn(?MODULE, init, [N, WS, WC, Phi, Dim, Lo, Hi, Epochs, self()]) || _ <- lists:seq(1, GroupNb)],
+%Create five groups on different TEDA nodes
+init_groups(GroupNb, N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
+  {ok, [_ | Ns]} = file:consult('enodes.conf'),
+  GroupPIDList = lists:sublist(Ns, 1, GroupNb),
+  [spawn(EID, ?MODULE, init, [N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs, self(), Ns]) || EID <- GroupPIDList],
   waitForGroups(GroupNb, []).
 
 waitForGroups(0, Val) ->
