@@ -51,7 +51,7 @@ start(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs) ->
   {H, M, S} = time(),
   io:format("~n==============================================================================~n"),
   io:format("[~2..0b:~2..0b:~2..0b] Optimization completed. ~nSwarm optimum location: ~p~nSwarm optimum value: ~p~n", [H, M, S, Min, cost_function(Min)]),
-  io:format("================================================================================"),
+  io:format("================================================================================~n").
 
 init(N, W_s, W_c, Phi, Dim, Lo, Hi, Epochs, MasterPID, TEDAList) ->
   NbOfTedaNodes = length(TEDAList),
